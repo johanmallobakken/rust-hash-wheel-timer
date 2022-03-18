@@ -39,12 +39,12 @@
 //! assert_eq!(*guard, true);
 //! ```
 use super::*;
-use crate::wheels::{cancellable::*, *};
+use crate::{wheels::{cancellable::*, *}, thread_timer::{TimerRef, TimeRefEnum}};
 use std::{
     fmt::Debug,
     hash::Hash,
     rc::Rc,
-    time::{Duration, SystemTime},
+    time::{Duration, SystemTime}, cell::RefCell,
 };
 
 // Almost the same as `TimerEntry`, but not storing unnecessary things
@@ -195,6 +195,21 @@ where
                 Err(f) => panic!("Could not insert timer entry! {:?}", f),
             },
             None => (), // ok, timer is not rescheduled
+        }
+    }
+
+    /// Returns a shareable reference to this timer
+    ///
+    /// The reference contains the timer's work queue
+    /// and can be used to schedule timeouts on this timer.
+    pub fn timer_ref(&self) -> TimerRef<I, O, P> {
+        TimerRef{
+            inner: TimeRefEnum::SimulationTimer(Rc::new(RefCell::new(
+                SimulationTimer{
+                    time: self.time.clone(),
+                    timer: self.timer.clone()
+                }
+            )))
         }
     }
 }

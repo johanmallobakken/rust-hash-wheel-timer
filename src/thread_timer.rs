@@ -43,20 +43,41 @@
 
 use super::*;
 
-use crate::wheels::{cancellable::*, *};
+use crate::{wheels::{cancellable::*, *}, simulation::SimulationTimer};
 use channel::select;
 use crossbeam_channel as channel;
-use std::{fmt, io, rc::Rc, thread, time::Instant};
+use uuid::Uuid;
+use std::{fmt::{self, Debug}, io, rc::Rc, thread, time::Instant, cell::RefCell};
 
+/// A reference to a thread timer
+///
+/// This is used to schedule events on the timer from other threads.
+///
+/// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
 #[derive(Debug)]
-enum TimerMsg<I, O, P>
+pub enum TimerMsg<I, O, P>
 where
     I: Hash + Clone + Eq,
     O: OneshotState<Id = I>,
     P: PeriodicState<Id = I>,
 {
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
     Schedule(TimerEntry<I, O, P>),
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
     Cancel(I),
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
     Stop,
 }
 
@@ -65,31 +86,63 @@ where
 /// This is used to schedule events on the timer from other threads.
 ///
 /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
-#[derive(Clone)]
-pub struct TimerRef<I, O, P>
+pub enum TimeRefEnum<I, O, P>
 where
-    I: Hash + Clone + Eq,
-    O: OneshotState<Id = I>,
-    P: PeriodicState<Id = I>,
+    I: Hash + Clone + Eq + Debug,
+    O: OneshotState<Id = I> + Debug,
+    P: PeriodicState<Id = I> + Debug,
 {
-    work_queue: channel::Sender<TimerMsg<I, O, P>>,
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+    Thread(channel::Sender<TimerMsg<I, O, P>>),
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+    SimulationTimer(Rc<RefCell<SimulationTimer<I, O, P>>>)
 }
 
+/// A reference to a thread timer
+///
+/// This is used to schedule events on the timer from other threads.
+///
+/// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+pub struct TimerRef<I, O, P>
+where
+    I: Hash + Clone + Eq + Debug,
+    O: OneshotState<Id = I> + Debug,
+    P: PeriodicState<Id = I> + Debug,
+{
+    inner: TimeRefEnum<I, O, P>,
+}
 impl<I, O, P> Timer for TimerRef<I, O, P>
 where
-    I: Hash + Clone + Eq,
-    O: OneshotState<Id = I>,
-    P: PeriodicState<Id = I>,
+    I: Hash + Clone + Eq + Debug,
+    O: OneshotState<Id = I> + Debug,
+    P: PeriodicState<Id = I>+ Debug,
 {
     type Id = I;
     type OneshotState = O;
     type PeriodicState = P;
 
     fn schedule_once(&mut self, timeout: Duration, state: Self::OneshotState) -> () {
-        let e = TimerEntry::OneShot { timeout, state };
-        self.work_queue
-            .send(TimerMsg::Schedule(e))
-            .unwrap_or_else(|e| eprintln!("Could not send Schedule msg: {:?}", e));
+        match &self.inner {
+            TimeRefEnum::Thread(channel) => {
+                let e = TimerEntry::OneShot { timeout, state };
+                channel
+                    .send(TimerMsg::Schedule(e))
+                    .unwrap_or_else(|e| eprintln!("Could not send Schedule msg: {:?}", e));
+            }
+            TimeRefEnum::SimulationTimer(simulation_timer) => {
+                simulation_timer.as_ref().borrow_mut().schedule_once(timeout, state)
+            },
+        }
+
+
     }
 
     fn schedule_periodic(
@@ -98,20 +151,34 @@ where
         period: Duration,
         state: Self::PeriodicState,
     ) -> () {
-        let e = TimerEntry::Periodic {
-            delay,
-            period,
-            state,
-        };
-        self.work_queue
-            .send(TimerMsg::Schedule(e))
-            .unwrap_or_else(|e| eprintln!("Could not send Schedule msg: {:?}", e));
+        match &self.inner {
+            TimeRefEnum::Thread(channel) => {
+                let e = TimerEntry::Periodic {
+                    delay,
+                    period,
+                    state,
+                };
+                channel
+                .send(TimerMsg::Schedule(e))
+                .unwrap_or_else(|e| eprintln!("Could not send Schedule msg: {:?}", e));
+            }
+            TimeRefEnum::SimulationTimer(simulation_timer) => {
+                simulation_timer.as_ref().borrow_mut().schedule_periodic(delay, period, state)
+            },
+        }
     }
 
     fn cancel(&mut self, id: &Self::Id) -> () {
-        self.work_queue
-            .send(TimerMsg::Cancel(id.clone()))
-            .unwrap_or_else(|e| eprintln!("Could not send Cancel msg: {:?}", e));
+        match &self.inner {
+            TimeRefEnum::Thread(channel) => {
+                channel
+                .send(TimerMsg::Cancel(id.clone()))
+                .unwrap_or_else(|e| eprintln!("Could not send Cancel msg: {:?}", e));
+            },
+            TimeRefEnum::SimulationTimer(simulation_timer) => {
+                simulation_timer.as_ref().borrow_mut().cancel(id);
+            },
+        }
     }
 }
 
@@ -157,8 +224,8 @@ where
     /// The reference contains the timer's work queue
     /// and can be used to schedule timeouts on this timer.
     pub fn timer_ref(&self) -> TimerRef<I, O, P> {
-        TimerRef {
-            work_queue: self.work_queue.clone(),
+        TimerRef{
+            inner: TimeRefEnum::Thread(self.work_queue.clone())
         }
     }
 
