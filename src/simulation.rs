@@ -197,21 +197,6 @@ where
             None => (), // ok, timer is not rescheduled
         }
     }
-
-    /// Returns a shareable reference to this timer
-    ///
-    /// The reference contains the timer's work queue
-    /// and can be used to schedule timeouts on this timer.
-    pub fn timer_ref(&self) -> TimerRef<I, O, P> {
-        TimerRef{
-            inner: TimeRefEnum::SimulationTimer(Rc::new(RefCell::new(
-                SimulationTimer{
-                    time: self.time.clone(),
-                    timer: self.timer.clone()
-                }
-            )))
-        }
-    }
 }
 
 impl<I> SimulationTimer<I, OneShotClosureState<I>, PeriodicClosureState<I>>
