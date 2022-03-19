@@ -122,20 +122,6 @@ where
     timer: QuadWheelWithOverflow<SimulationEntry<I, O, P>>,
 }
 
-unsafe impl<I, O, P> Sync for SimulationTimer<I, O, P>
-where
-    I: Hash + Clone + Eq + Debug,
-    O: OneshotState<Id = I> + Debug,
-    P: PeriodicState<Id = I> + Debug,
-{}
-
-unsafe impl<I, O, P> Send for SimulationTimer<I, O, P>
-where
-    I: Hash + Clone + Eq + Debug,
-    O: OneshotState<Id = I> + Debug,
-    P: PeriodicState<Id = I> + Debug,
-{}
-
 impl<I, O, P> SimulationTimer<I, O, P>
 where
     I: Hash + Clone + Eq + Debug,

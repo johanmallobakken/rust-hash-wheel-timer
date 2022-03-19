@@ -47,7 +47,7 @@ use crate::{wheels::{cancellable::*, *}, simulation::SimulationTimer};
 use channel::select;
 use crossbeam_channel as channel;
 use uuid::Uuid;
-use std::{fmt::{self, Debug}, io, rc::Rc, thread, time::Instant, cell::RefCell};
+use std::{fmt::{self, Debug}, io, rc::Rc, thread, time::Instant, cell::RefCell, sync::Arc};
 
 /// A reference to a thread timer
 ///
@@ -103,7 +103,7 @@ where
     /// This is used to schedule events on the timer from other threads.
     ///
     /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
-    SimulationTimer(Rc<RefCell<SimulationTimer<I, O, P>>>)
+    SimulationTimer(Arc<RefCell<SimulationTimer<I, O, P>>>)
 }
 
 /// A reference to a thread timer
