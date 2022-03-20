@@ -103,7 +103,7 @@ where
     /// This is used to schedule events on the timer from other threads.
     ///
     /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
-    SimulationTimer(Arc<RefCell<SimulationTimer<I, O, P>>>)
+    SimulationTimer(Rc<RefCell<SimulationTimer<I, O, P>>>)
 }
 
 /// A reference to a thread timer
@@ -117,7 +117,7 @@ where
     O: OneshotState<Id = I> + Debug,
     P: PeriodicState<Id = I> + Debug,
 {
-    inner: TimeRefEnum<I, O, P>,
+    pub(crate) inner: TimeRefEnum<I, O, P>,
 }
 impl<I, O, P> Timer for TimerRef<I, O, P>
 where
@@ -141,8 +141,6 @@ where
                 simulation_timer.as_ref().borrow_mut().schedule_once(timeout, state)
             },
         }
-
-
     }
 
     fn schedule_periodic(

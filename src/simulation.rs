@@ -47,16 +47,71 @@ use std::{
     time::{Duration, SystemTime}, cell::RefCell,
 };
 
-// Almost the same as `TimerEntry`, but not storing unnecessary things
+/// A reference to a thread timer
+///
+/// This is used to schedule events on the timer from other threads.
+///
+/// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
 #[derive(Debug)]
-enum SimulationEntry<I, O, P>
+pub enum SimulationMsg<I, O, P>
 where
     I: Hash + Clone + Eq,
     O: OneshotState<Id = I>,
     P: PeriodicState<Id = I>,
 {
-    OneShot { state: O },
-    Periodic { period: Duration, state: P },
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+    Schedule(SimulationEntry<I, O, P>),
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+    Cancel(I),
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+    Stop,
+}
+
+// Almost the same as `TimerEntry`, but not storing unnecessary things
+/// A reference to a thread timer
+///
+/// This is used to schedule events on the timer from other threads.
+///
+/// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+#[derive(Debug)]
+pub enum SimulationEntry<I, O, P>
+where
+    I: Hash + Clone + Eq,
+    O: OneshotState<Id = I>,
+    P: PeriodicState<Id = I>,
+{
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+    OneShot { 
+        ///bla
+        state: O 
+    },
+    /// A reference to a thread timer
+    ///
+    /// This is used to schedule events on the timer from other threads.
+    ///
+    /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
+    Periodic { 
+        ///bla
+        period: Duration, 
+        ///bla
+        state: P 
+},
 }
 
 impl<I, O, P> SimulationEntry<I, O, P>
@@ -119,7 +174,7 @@ where
     P: PeriodicState<Id = I> + Debug,
 {
     time: u128,
-    timer: QuadWheelWithOverflow<SimulationEntry<I, O, P>>,
+    timer: Rc<RefCell<QuadWheelWithOverflow<SimulationEntry<I, O, P>>>>,
 }
 
 impl<I, O, P> SimulationTimer<I, O, P>
@@ -132,7 +187,7 @@ where
     pub fn new() -> Self {
         SimulationTimer {
             time: 0u128,
-            timer: QuadWheelWithOverflow::new(),
+            timer: Rc::new(RefCell::new(QuadWheelWithOverflow::new())),
         }
     }
 
@@ -144,7 +199,7 @@ where
         let tms = t.as_millis();
         SimulationTimer {
             time: tms,
-            timer: QuadWheelWithOverflow::new(),
+            timer: Rc::new(RefCell::new(QuadWheelWithOverflow::new())),
         }
     }
 
@@ -156,10 +211,10 @@ where
     /// Advance the virtual time
     pub fn next(&mut self) -> SimulationStep {
         loop {
-            match self.timer.can_skip() {
+            match self.timer_can_skip() {
                 Skip::Empty => return SimulationStep::Finished,
                 Skip::None => {
-                    let res = self.timer.tick();
+                    let res = self.timer_tick();
                     self.time += 1u128;
                     if !res.is_empty() {
                         for e in res {
@@ -169,9 +224,9 @@ where
                     }
                 }
                 Skip::Millis(ms) => {
-                    self.timer.skip(ms);
+                    self.timer_skip(ms);
                     self.time += ms as u128;
-                    let res = self.timer.tick();
+                    let res = self.timer_tick();
                     self.time += 1u128;
                     if !res.is_empty() {
                         for e in res {
@@ -186,7 +241,7 @@ where
 
     fn trigger_entry(&mut self, e: Rc<SimulationEntry<I, O, P>>) -> () {
         match SimulationEntry::execute_unique_ref(e) {
-            Some((new_e, delay)) => match self.timer.insert_ref_with_delay(new_e, delay) {
+            Some((new_e, delay)) => match self.timer_insert_ref_with_delay(new_e, delay) {
                 Ok(_) => (), // ok
                 Err(TimerError::Expired(e)) => panic!(
                     "Trying to insert periodic timer entry with 0ms period! {:?}",
@@ -195,6 +250,39 @@ where
                 Err(f) => panic!("Could not insert timer entry! {:?}", f),
             },
             None => (), // ok, timer is not rescheduled
+        }
+    }
+
+    fn timer_can_skip(&self) -> wheels::Skip{
+        let timer_ref = self.timer.as_ref().borrow();
+        timer_ref.can_skip()
+    }
+
+    fn timer_skip(&self, ms: u32) -> (){
+        let mut timer_ref = self.timer.as_ref().borrow_mut();
+        timer_ref.skip(ms)
+    }
+
+    fn timer_tick(&self) -> Vec<std::rc::Rc<SimulationEntry<I, O, P>>>{
+        let mut timer_ref = self.timer.as_ref().borrow_mut();
+        timer_ref.tick()
+    }
+
+    fn timer_insert_ref_with_delay(&self, e: Rc<SimulationEntry<I, O, P>>,  delay: Duration) -> Result<(), TimerError<Rc<SimulationEntry<I, O, P>>>>{
+        let mut timer_ref = self.timer.as_ref().borrow_mut();
+        timer_ref.insert_ref_with_delay(e, delay)
+    }
+    
+    /// Returns a shareable reference to this timer
+    ///
+    /// The reference contains the timer's work queue
+    /// and can be used to schedule timeouts on this timer.
+    pub fn timer_ref(&self) -> TimerRef<I, O, P> {
+        TimerRef{
+            inner: TimeRefEnum::SimulationTimer(Rc::new(RefCell::new(SimulationTimer{
+                time: self.time.clone(),
+                timer: self.timer.clone()
+            })))
         }
     }
 }
@@ -243,7 +331,7 @@ where
 
     fn schedule_once(&mut self, timeout: Duration, state: Self::OneshotState) -> () {
         let e = SimulationEntry::OneShot { state };
-        match self.timer.insert_ref_with_delay(Rc::new(e), timeout) {
+        match self.timer_insert_ref_with_delay(Rc::new(e), timeout) {
             Ok(_) => (), // ok
             Err(TimerError::Expired(e)) => {
                 if let None = SimulationEntry::execute_unique_ref(e) {
@@ -264,10 +352,10 @@ where
         state: Self::PeriodicState,
     ) -> () {
         let e = SimulationEntry::Periodic { period, state };
-        match self.timer.insert_ref_with_delay(Rc::new(e), delay) {
+        match self.timer_insert_ref_with_delay(Rc::new(e), delay) {
             Ok(_) => (), // ok
             Err(TimerError::Expired(e)) => match SimulationEntry::execute_unique_ref(e) {
-                Some((new_e, delay)) => match self.timer.insert_ref_with_delay(new_e, delay) {
+                Some((new_e, delay)) => match self.timer_insert_ref_with_delay(new_e, delay) {
                     Ok(_) => (), // ok
                     Err(TimerError::Expired(e)) => panic!(
                         "Trying to insert periodic timer entry with 0ms period! {:?}",
@@ -282,7 +370,8 @@ where
     }
 
     fn cancel(&mut self, id: &Self::Id) -> () {
-        match self.timer.cancel(id) {
+        let mut timer_ref = self.timer.as_ref().borrow_mut();
+        match timer_ref.cancel(id) {
             Ok(_) => (),                                                             // great
             Err(f) => eprintln!("Could not cancel timer with id={:?}. {:?}", id, f), // not so great, but meh
         }
