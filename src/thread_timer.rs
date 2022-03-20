@@ -47,7 +47,7 @@ use crate::{wheels::{cancellable::*, *}, simulation::SimulationTimer};
 use channel::select;
 use crossbeam_channel as channel;
 use uuid::Uuid;
-use std::{fmt::{self, Debug}, io, rc::Rc, thread, time::Instant, cell::RefCell, sync::Arc};
+use std::{fmt::{self, Debug}, io, rc::Rc, thread, time::Instant, cell::RefCell, sync::{Arc, Mutex}};
 
 /// A reference to a thread timer
 ///
@@ -103,7 +103,7 @@ where
     /// This is used to schedule events on the timer from other threads.
     ///
     /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
-    SimulationTimer(Arc<RefCell<SimulationTimer<I, O, P>>>)
+    SimulationTimer(Arc<Mutex<SimulationTimer<I, O, P>>>)
 }
 
 /// A reference to a thread timer
@@ -138,7 +138,7 @@ where
                     .unwrap_or_else(|e| eprintln!("Could not send Schedule msg: {:?}", e));
             }
             TimeRefEnum::SimulationTimer(simulation_timer) => {
-                simulation_timer.as_ref().borrow_mut().schedule_once(timeout, state)
+                simulation_timer.as_ref().lock().unwrap().schedule_once(timeout, state)
             },
         }
     }
@@ -161,7 +161,7 @@ where
                 .unwrap_or_else(|e| eprintln!("Could not send Schedule msg: {:?}", e));
             }
             TimeRefEnum::SimulationTimer(simulation_timer) => {
-                simulation_timer.as_ref().borrow_mut().schedule_periodic(delay, period, state)
+                simulation_timer.as_ref().lock().unwrap().schedule_periodic(delay, period, state)
             },
         }
     }
@@ -174,7 +174,7 @@ where
                 .unwrap_or_else(|e| eprintln!("Could not send Cancel msg: {:?}", e));
             },
             TimeRefEnum::SimulationTimer(simulation_timer) => {
-                simulation_timer.as_ref().borrow_mut().cancel(id);
+                simulation_timer.as_ref().lock().unwrap().cancel(id);
             },
         }
     }
