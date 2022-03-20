@@ -44,7 +44,7 @@ use std::{
     fmt::Debug,
     hash::Hash,
     rc::Rc,
-    time::{Duration, SystemTime}, cell::RefCell,
+    time::{Duration, SystemTime}, cell::RefCell, sync::Arc,
 };
 
 /// A reference to a thread timer
@@ -279,7 +279,7 @@ where
     /// and can be used to schedule timeouts on this timer.
     pub fn timer_ref(&self) -> TimerRef<I, O, P> {
         TimerRef{
-            inner: TimeRefEnum::SimulationTimer(Rc::new(RefCell::new(SimulationTimer{
+            inner: TimeRefEnum::SimulationTimer(Arc::new(RefCell::new(SimulationTimer{
                 time: self.time.clone(),
                 timer: self.timer.clone()
             })))

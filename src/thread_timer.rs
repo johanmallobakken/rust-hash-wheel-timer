@@ -103,7 +103,7 @@ where
     /// This is used to schedule events on the timer from other threads.
     ///
     /// You can get an instance via [timer_ref](TimerWithThread::timer_ref).
-    SimulationTimer(Rc<RefCell<SimulationTimer<I, O, P>>>)
+    SimulationTimer(Arc<RefCell<SimulationTimer<I, O, P>>>)
 }
 
 /// A reference to a thread timer
