@@ -305,7 +305,7 @@ where
     ///
     /// In particular, this method waits for the timer's thread to be
     /// joined, or returns an error.
-    pub fn shutdown(self) -> Result<(), Result<(), TimerError<Rc<SimulationEntry<I, O, P>>>> {
+    pub fn shutdown(self) -> Result<(), TimerError<Rc<SimulationEntry<I, O, P>>>> {
         todo!();
     }
 }
