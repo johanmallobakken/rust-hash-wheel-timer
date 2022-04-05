@@ -225,6 +225,7 @@ where
     /// Advance the virtual time
     pub fn next(&mut self) -> SimulationStep {
         loop {
+            println!("LOOOPIN");
             match self.timer_can_skip() {
                 Skip::Empty => return SimulationStep::Finished,
                 Skip::None => {
@@ -298,6 +299,14 @@ where
                 timer: self.timer.clone()
             })))
         }
+    }
+
+    /// Shut this timer down
+    ///
+    /// In particular, this method waits for the timer's thread to be
+    /// joined, or returns an error.
+    pub fn shutdown(self) -> Result<(), Result<(), TimerError<Rc<SimulationEntry<I, O, P>>>> {
+        todo!();
     }
 }
 
