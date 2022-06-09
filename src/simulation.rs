@@ -199,7 +199,7 @@ where
 {
     /// Create a new simulation timer starting at `0`
     pub fn new() -> Self {
-        println!("TIMER: new");
+        //println!("TIMER: new");
 
         SimulationTimer {
             time: 0u128,
@@ -209,7 +209,7 @@ where
 
     /// Create a new simulation timer starting at a system clock value
     pub fn at(now: SystemTime) -> Self {
-        println!("TIMER: at");
+        //println!("TIMER: at");
 
         let t = now
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -223,17 +223,17 @@ where
 
     /// Return the timers current virtual time value (in ms)
     pub fn current_time(&self) -> u128 {
-        println!("TIMER: current_time");
+        //println!("TIMER: current_time");
 
         self.time
     }
 
     /// Advance the virtual time
     pub fn next(&mut self) -> SimulationStep {
-        println!("TIMER: next");
+        //println!("TIMER: next");
 
         loop {
-            println!("LOOOPIN");
+            //println!("LOOOPIN");
             match self.timer_can_skip() {
                 Skip::Empty => return SimulationStep::Finished,
                 Skip::None => {
@@ -263,7 +263,7 @@ where
     }
 
     fn trigger_entry(&mut self, e: Rc<SimulationEntry<I, O, P>>) -> () {
-        println!("TIMER: trigger_entry");
+        //println!("TIMER: trigger_entry");
 
         match SimulationEntry::execute_unique_ref(e) {
             Some((new_e, delay)) => match self.timer_insert_ref_with_delay(new_e, delay) {
@@ -279,28 +279,28 @@ where
     }
 
     fn timer_can_skip(&self) -> wheels::Skip{
-        println!("TIMER: timer_can_skip");
+        //println!("TIMER: timer_can_skip");
 
         let timer_ref = self.timer.as_ref().borrow();
         timer_ref.can_skip()
     }
 
     fn timer_skip(&self, ms: u32) -> (){
-        println!("TIMER: timer_skip");
+        //println!("TIMER: timer_skip");
 
         let mut timer_ref = self.timer.as_ref().borrow_mut();
         timer_ref.skip(ms)
     }
 
     fn timer_tick(&self) -> Vec<std::rc::Rc<SimulationEntry<I, O, P>>>{
-        println!("TIMER: timer_tick");
+        //println!("TIMER: timer_tick");
 
         let mut timer_ref = self.timer.as_ref().borrow_mut();
         timer_ref.tick()
     }
 
     fn timer_insert_ref_with_delay(&self, e: Rc<SimulationEntry<I, O, P>>,  delay: Duration) -> Result<(), TimerError<Rc<SimulationEntry<I, O, P>>>>{
-        println!("TIMER: timer_insert_ref_with_delay");
+        //println!("TIMER: timer_insert_ref_with_delay");
 
         let mut timer_ref = self.timer.as_ref().borrow_mut();
         timer_ref.insert_ref_with_delay(e, delay)
@@ -311,7 +311,7 @@ where
     /// The reference contains the timer's work queue
     /// and can be used to schedule timeouts on this timer.
     pub fn timer_ref(&self) -> TimerRef<I, O, P> {
-        println!("TIMER: timer_ref");
+        //println!("TIMER: timer_ref");
 
         TimerRef{
             inner: TimeRefEnum::SimulationTimer(Arc::new(Mutex::new(SimulationTimer{
@@ -326,7 +326,7 @@ where
     /// In particular, this method waits for the timer's thread to be
     /// joined, or returns an error.
     pub fn shutdown(self) -> Result<(), TimerError<Rc<SimulationEntry<I, O, P>>>> {
-        println!("TIMER: shutdown");
+        //println!("TIMER: shutdown");
 
         todo!();
     }
@@ -396,7 +396,7 @@ where
         period: Duration,
         state: Self::PeriodicState,
     ) -> () {
-        println!("SCHEDULE PERIODIC CALLED IN RUST HASH WHEEL TIMER SIMULATOR");
+        //println!("SCHEDULE PERIODIC CALLED IN RUST HASH WHEEL TIMER SIMULATOR");
         let e = SimulationEntry::Periodic { period, state };
         match self.timer_insert_ref_with_delay(Rc::new(e), delay) {
             Ok(_) => (), // ok
