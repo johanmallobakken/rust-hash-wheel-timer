@@ -396,6 +396,7 @@ where
         period: Duration,
         state: Self::PeriodicState,
     ) -> () {
+        println!("SCHEDULE PERIODIC CALLED IN RUST HASH WHEEL TIMER SIMULATOR");
         let e = SimulationEntry::Periodic { period, state };
         match self.timer_insert_ref_with_delay(Rc::new(e), delay) {
             Ok(_) => (), // ok
