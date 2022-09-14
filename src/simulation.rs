@@ -230,8 +230,6 @@ where
 
     /// Advance the virtual time
     pub fn next(&mut self) -> SimulationStep {
-        //println!("TIMER: next");
-
         loop {
             //println!("LOOOPIN");
             match self.timer_can_skip() {
@@ -246,7 +244,16 @@ where
                         return SimulationStep::Ok;
                     }
                 }
-                Skip::Millis(ms) => {
+                Skip::Millis(_) => {
+                    let res = self.timer_tick();
+                    self.time += 1u128;
+                    if !res.is_empty() {
+                        for e in res {
+                            self.trigger_entry(e);
+                        }
+                        return SimulationStep::Ok;
+                    }
+                    /* 
                     self.timer_skip(ms);
                     self.time += ms as u128;
                     let res = self.timer_tick();
@@ -256,7 +263,7 @@ where
                             self.trigger_entry(e);
                         }
                         return SimulationStep::Ok;
-                    }
+                    }*/
                 }
             }
         }
