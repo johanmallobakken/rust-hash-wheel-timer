@@ -244,16 +244,7 @@ where
                         return SimulationStep::Ok;
                     }
                 }
-                Skip::Millis(_) => {
-                    let res = self.timer_tick();
-                    self.time += 1u128;
-                    if !res.is_empty() {
-                        for e in res {
-                            self.trigger_entry(e);
-                        }
-                        return SimulationStep::Ok;
-                    }
-                    /* 
+                Skip::Millis(ms) => {
                     self.timer_skip(ms);
                     self.time += ms as u128;
                     let res = self.timer_tick();
@@ -263,10 +254,22 @@ where
                             self.trigger_entry(e);
                         }
                         return SimulationStep::Ok;
-                    }*/
+                    }
                 }
             }
         }
+    }
+
+    /// Advance the virtual time
+    pub fn next_one_ms(&mut self) -> SimulationStep {
+        let res = self.timer_tick();
+        self.time += 1u128;
+        if !res.is_empty() {
+            for e in res {
+                self.trigger_entry(e);
+            }
+        }
+        return SimulationStep::Ok;
     }
 
     fn trigger_entry(&mut self, e: Rc<SimulationEntry<I, O, P>>) -> () {
