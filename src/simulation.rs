@@ -262,14 +262,19 @@ where
 
     /// Advance the virtual time
     pub fn next_one_ms(&mut self) -> SimulationStep {
-        let res = self.timer_tick();
-        self.time += 1u128;
-        if !res.is_empty() {
-            for e in res {
-                self.trigger_entry(e);
+        match self.timer_can_skip() {
+            Skip::Empty => return SimulationStep::Finished,
+            Skip::None | Skip::Millis(_) => {
+                let res = self.timer_tick();
+                self.time += 1u128;
+                if !res.is_empty() {
+                    for e in res {
+                        self.trigger_entry(e);
+                    }
+                }
+                return SimulationStep::Ok;
             }
         }
-        return SimulationStep::Ok;
     }
 
     fn trigger_entry(&mut self, e: Rc<SimulationEntry<I, O, P>>) -> () {
